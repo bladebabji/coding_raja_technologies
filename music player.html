@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Music Player</title>
+    <!-- Load FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.0/css/all.min.css">
+
+    <!-- CSS style -->
+    <style>
+        body {
+          background-color: lightgreen;
+        
+          /* Smoothly transition the background color */
+          transition: background-color .5s;
+        }
+        
+        .player {
+          height: 95vh;
+          display: flex;
+          align-items: center;
+          flex-direction: column;
+          justify-content: center;
+        }
+        
+        .details {
+          display: flex;
+          align-items: center;
+          flex-direction: column;
+          justify-content: center;
+          margin-top: 25px;
+        }
+        
+        .track-art {
+          margin: 25px;
+          height: 250px;
+          width: 250px;
+          background-image: url("https://images.pexels.com/photos/262034/pexels-photo-262034.jpeg?auto=compress&cs=tinysrgb&dpr=3&h=750&w=1260");
+          background-size: cover;
+          border-radius: 15%;
+        }
+        
+        .now-playing {
+          font-size: 1rem;
+        }
+        
+        .track-name {
+          font-size: 3rem;
+        }
+        
+        .track-artist {
+          font-size: 1.5rem;
+        }
+        
+        .buttons {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+        }
+        
+        .playpause-track,
+        .prev-track,
+        .next-track {
+          padding: 25px;
+          opacity: 0.8;
+        
+          /* Smoothly transition the opacity */
+          transition: opacity .2s;
+        }
+        
+        .playpause-track:hover,
+        .prev-track:hover,
+        .next-track:hover {
+          opacity: 1.0;
+        }
+        
+        .slider_container {
+          width: 75%;
+          max-width: 400px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        
+        /* Modify the appearance of the slider */
+        .seek_slider,
+        .volume_slider {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+          height: 5px;
+          background: black;
+          opacity: 0.7;
+          -webkit-transition: .2s;
+          transition: opacity .2s;
+        }
+        
+        /* Modify the appearance of the slider thumb */
+        .seek_slider::-webkit-slider-thumb,
+        .volume_slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+          width: 15px;
+          height: 15px;
+          background: white;
+          cursor: pointer;
+          border-radius: 50%;
+        }
+        
+        .seek_slider:hover,
+        .volume_slider:hover {
+          opacity: 1.0;
+        }
+        
+        .seek_slider {
+          width: 60%;
+        }
+        
+        .volume_slider {
+          width: 30%;
+        }
+        
+        .current-time,
+        .total-duration {
+          padding: 10px;
+        }
+        
+        i.fa-volume-down,
+        i.fa-volume-up {
+          padding: 10px;
+        }
+        
+        i.fa-play-circle,
+        i.fa-pause-circle,
+        i.fa-step-forward,
+        i.fa-step-backward {
+          cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="player">
+        <div class="details">
+            <div class="now-playing">PLAYING x OF y</div>
+            <div class="track-art"></div>
+            <div class="track-name">Track Name</div>
+            <div class="track-artist">Track Artist</div>
+        </div>
+        <div class="buttons">
+            <div class="prev-track" onclick="prevTrack()"><i class="fa fa-step-backward fa-2x"></i></div>
+            <div class="playpause-track" onclick="playpauseTrack()"><i class="fa fa-play-circle fa-5x"></i></div>
+            <div class="next-track" onclick="nextTrack()"><i class="fa fa-step-forward fa-2x"></i></div>
+        </div>
+        <div class="slider_container">
+            <div class="current-time">00:00</div>
+            <input type="range" min="1" max="100" value="0" class="seek_slider" onchange="seekTo()">
+            <div class="total-duration">00:00</div>
+        </div>
+        <div class="slider_container">
+            <i class="fa fa-volume-down"></i>
+            <input type="range" min="1" max="100" value="99" class="volume_slider" onchange="setVolume()">
+            <i class="fa fa-volume-up"></i>
+        </div>
+    </div>
+
+    <!-- Main script for the player -->
+    <script>
+        let now_playing = document.querySelector(".now-playing");
+        let track_art = document.querySelector(".track-art");
+        let track_name = document.querySelector(".track-name");
+        let track_artist = document.querySelector(".track-artist");
+        
+        let playpause_btn = document.querySelector(".playpause-track");
+        let next_btn = document.querySelector(".next-track");
+        let prev_btn = document.querySelector(".prev-track");
+        
+        let seek_slider = document.querySelector(".seek_slider");
+        let volume_slider = document.querySelector(".volume_slider");
+        let curr_time = document.querySelector(".current-time");
+        let total_duration = document.querySelector(".total-duration");
+        
+        let track_index = 0;
+        let isPlaying = false;
+        let updateTimer;
+        
+        // Create new audio element
+        let curr_track = document.createElement('audio');
+        
+        // Define the tracks that have to be played
+        let track_list = [
+          {
+            name: "HUA MAIN",
+            artist: "VISHAL MISHRA",
+            image: "https://feeds.abplive.com/onecms/images/uploaded-images/2023/10/11/2d6c4f4ecd5ceb6d3f5a204e80074db81697010365268274_original.jpg?impolicy=abp_cdn&imwidth=720",
+            path: "https://pagalfree.com/musics/128-Hua%20Main%20-%20Animal%20128%20Kbps.mp3"
+          },
+          {
+            name: "AMMADI",
+            artist: "HESHAM ABDUL WAHAB",
+            image: "data:image/jpeg;base64,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",
+            path: "https://pagallworld.co.in/wp-content/uploads/2023/11/Ammaadi-Hi-Nanna.mp3"
+          },
+          {
+            name: "PERFECT",
+            artist: "ED SHEEREN",
+            image: "https://i.scdn.co/image/ab67616d0000b273ba5db46f4b838ef6027e6f96",
+            path: "https://pagalsongs.com.in/files/download?id=615",
+          },
+        ];
+        
+        function loadTrack(track_index) {
+          clearInterval(updateTimer);
+          resetValues();
+        
+          // Load a new track
+          curr_track.src = track_list[track_index].path;
+          curr_track.load();
+        
+          // Update details of the track
+          track_art.style.backgroundImage = "url(" + track_list[track_index].image + ")";
+          track_name.textContent = track_list[track_index].name;
+          track_artist.textContent = track_list[track_index].artist;
+          now_playing.textContent = "PLAYING " + (track_index + 1) + " OF " + track_list.length;
+        
+          // Set an interval of 1000 milliseconds for updating the seek slider
+          updateTimer = setInterval(seekUpdate, 1000);
+        
+          // Move to the next track if the current one finishes playing
+          curr_track.addEventListener("ended", nextTrack);
+        
+          // Apply a random background color
+          random_bg_color();
+        }
+        
+        function random_bg_color() {
+        
+          // Get a random number between 64 to 256 (for getting lighter colors)
+          let red = Math.floor(Math.random() * 256) + 64;
+          let green = Math.floor(Math.random() * 256) + 64;
+          let blue = Math.floor(Math.random() * 256) + 64;
+        
+          // Construct a color withe the given values
+          let bgColor = "rgb(" + red + "," + green + "," + blue + ")";
+        
+          // Set the background to that color
+          document.body.style.background = bgColor;
+        }
+        
+        // Reset Values
+        function resetValues() {
+          curr_time.textContent = "00:00";
+          total_duration.textContent = "00:00";
+          seek_slider.value = 0;
+        }
+        
+        function playpauseTrack() {
+          if (!isPlaying) playTrack();
+          else pauseTrack();
+        }
+        
+        function playTrack() {
+          curr_track.play();
+          isPlaying = true;
+        
+          // Replace icon with the pause icon
+          playpause_btn.innerHTML = '<i class="fa fa-pause-circle fa-5x"></i>';
+        }
+        
+        function pauseTrack() {
+          curr_track.pause();
+          isPlaying = false;
+        
+          // Replace icon with the play icon
+          playpause_btn.innerHTML = '<i class="fa fa-play-circle fa-5x"></i>';;
+        }
+        
+        function nextTrack() {
+          if (track_index < track_list.length - 1)
+            track_index += 1;
+          else track_index = 0;
+          loadTrack(track_index);
+          playTrack();
+        }
+        
+        function prevTrack() {
+          if (track_index > 0)
+            track_index -= 1;
+          else track_index = track_list.length;
+          loadTrack(track_index);
+          playTrack();
+        }
+        
+        function seekTo() {
+          seekto = curr_track.duration * (seek_slider.value / 100);
+          curr_track.currentTime = seekto;
+        }
+        
+        function setVolume() {
+          curr_track.volume = volume_slider.value / 100;
+        }
+        
+        function seekUpdate() {
+          let seekPosition = 0;
+        
+          // Check if the current track duration is a legible number
+          if (!isNaN(curr_track.duration)) {
+            seekPosition = curr_track.currentTime * (100 / curr_track.duration);
+            seek_slider.value = seekPosition;
+        
+            // Calculate the time left and the total duration
+            let currentMinutes = Math.floor(curr_track.currentTime / 60);
+            let currentSeconds = Math.floor(curr_track.currentTime - currentMinutes * 60);
+            let durationMinutes = Math.floor(curr_track.duration / 60);
+            let durationSeconds = Math.floor(curr_track.duration - durationMinutes * 60);
+        
+            // Adding a zero to the single digit time values
+            if (currentSeconds < 10) { currentSeconds = "0" + currentSeconds; }
+            if (durationSeconds < 10) { durationSeconds = "0" + durationSeconds; }
+            if (currentMinutes < 10) { currentMinutes = "0" + currentMinutes; }
+            if (durationMinutes < 10) { durationMinutes = "0" + durationMinutes; }
+        
+            curr_time.textContent = currentMinutes + ":" + currentSeconds;
+            total_duration.textContent = durationMinutes + ":" + durationSeconds;
+          }
+        }
+        
+        // Load the first track in the tracklist
+        loadTrack(track_index);
+    </script>
+</body>
+
+</html>
